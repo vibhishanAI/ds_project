@@ -7,78 +7,76 @@
 Node* root = NULL;
 int totalDrivers = 0;
 
-// Helper
-int arePointsSame(int p1[K], int p2[K]) {
-    for (int i = 0; i < K; ++i) {
-        if (p1[i] != p2[i]) return 0;
-    }
-    return 1;
-}
-
 // Create Node
-Node* newNode(int coords[K]) {
-    Node* n = (Node*)malloc(sizeof(Node));
+Node* createNode(int point[]) {
+    Node* newNode = (Node*)malloc(sizeof(Node));
     for (int i = 0; i < K; i++) {
-        n->point[i] = coords[i];
+        newNode->point[i] = point[i];
     }
-    n->left = n->right = NULL;
-    return n;
+    newNode->left = NULL;
+    newNode->right = NULL;
+    return newNode;
 }
 
 // Insert
-Node* insert(Node* root, int coords[K], int depth) {
+Node* insert(Node* root, int point[], int depth) {
     if (root == NULL) {
-        return newNode(coords);
+        return createNode(point);
     }
     int axis = depth % K;
-    if (coords[axis] < root->point[axis]) {
-        root->left = insert(root->left, coords, depth + 1);
+    if (point[axis] < root->point[axis]) {
+        root->left = insert(root->left, point, depth + 1);
     } else {
-        root->right = insert(root->right, coords, depth + 1);
+        root->right = insert(root->right, point, depth + 1);
     }
     return root;
 }
 
-// Find minimum
-Node* minNode(Node* x, Node* y, Node* z, int d) {
-    Node* res = x;
-    if (y != NULL && y->point[d] < res->point[d])
-       res = y;
-    if (z != NULL && z->point[d] < res->point[d])
-       res = z;
-    return res;
-}
-
+// Find Minimum
 Node* findMin(Node* root, int d, int depth) {
     if (root == NULL)
         return NULL;
-    int cd = depth % K;
-    if (cd == d) {
+
+    int axis = depth % K;
+
+    if (axis == d) {
         if (root->left == NULL)
             return root;
         return findMin(root->left, d, depth + 1);
     }
-    return minNode(root,
-               findMin(root->left, d, depth + 1),
-               findMin(root->right, d, depth + 1), d);
+
+    Node* leftMin = findMin(root->left, d, depth + 1);
+    Node* rightMin = findMin(root->right, d, depth + 1);
+
+    Node* min = root;
+
+    if (leftMin && leftMin->point[d] < min->point[d])
+        min = leftMin;
+
+    if (rightMin && rightMin->point[d] < min->point[d])
+        min = rightMin;
+
+    return min;
 }
 
-// Delete helper with tracking
-Node* deleteNodeInternal(Node* root, int point[K], int depth, int* deleted) {
-    if (root == NULL) return NULL;
+// Delete
+Node* deleteNode(Node* root, int point[], int depth) {
+    if (root == NULL)
+        return NULL;
 
-    int cd = depth % K;
+    int axis = depth % K;
 
-    if (arePointsSame(root->point, point)) {
-        *deleted = 1;
+    if (root->point[0] == point[0] && root->point[1] == point[1]) {
         if (root->right != NULL) {
-            Node* min = findMin(root->right, cd, depth + 1);
-            for (int i = 0; i < K; i++) root->point[i] = min->point[i];
-            root->right = deleteNodeInternal(root->right, min->point, depth + 1, deleted);
+            Node* min = findMin(root->right, axis, depth + 1);
+            root->point[0] = min->point[0];
+            root->point[1] = min->point[1];
+            root->right = deleteNode(root->right, min->point, depth + 1);
         } else if (root->left != NULL) {
-            Node* min = findMin(root->left, cd, depth + 1);
-            for (int i = 0; i < K; i++) root->point[i] = min->point[i];
-            root->right = deleteNodeInternal(root->left, min->point, depth + 1, deleted);
+            Node* min = findMin(root->left, axis, depth + 1);
+            root->point[0] = min->point[0];
+            root->point[1] = min->point[1];
+            root->right = deleteNode(root->left, min->point, depth + 1);
             root->left = NULL;
         } else {
             free(root);
@@ -87,41 +85,35 @@ Node* deleteNodeInternal(Node* root, int point[K], int depth, int* deleted) {
         return root;
     }
 
-    if (point[cd] < root->point[cd]) {
-        root->left = deleteNodeInternal(root->left, point, depth + 1, deleted);
-    } else {
-        root->right = deleteNodeInternal(root->right, point, depth + 1, deleted);
-    }
+    if (point[axis] < root->point[axis])
+        root->left = deleteNode(root->left, point, depth + 1);
+    else
+        root->right = deleteNode(root->right, point, depth + 1);
+
     return root;
 }
 
-Node* deleteNode(Node* root, int point[K], int depth) {
-    int deleted = 0;
-    return deleteNodeInternal(root, point, depth, &deleted);
-}
-
 // Distance function
-double distanceSquared(int p1[K], int p2[K]) {
-    double sum = 0;
-    for (int i = 0; i < K; i++) {
-        double diff = (double)p1[i] - (double)p2[i];
-        sum += diff * diff;
-    }
-    return sum;
+double distanceSquared(int p1[], int p2[]) {
+    double dx = p1[0] - p2[0];
+    double dy = p1[1] - p2[1];
+    return dx*dx + dy*dy;
 }
 
 // Nearest Neighbor
-void nearest(Node* root, int target[K], int bestPoint[K], double* bestDistSq, int depth) {
-    if (root == NULL) return;
+void nearestNeighbor(Node* root, int target[], int depth, Node** best, double* bestDist) {
+    if (root == NULL)
+        return;
 
     double d = distanceSquared(root->point, target);
 
-    if (d < *bestDistSq) {
-        *bestDistSq = d;
-        for (int i = 0; i < K; i++) bestPoint[i] = root->point[i];
+    if (d < *bestDist) {
+        *bestDist = d;
+        *best = root;
     }
 
     int axis = depth % K;
+
     Node *nextBranch, *otherBranch;
 
     if (target[axis] < root->point[axis]) {
@@ -132,16 +124,17 @@ void nearest(Node* root, int target[K], int bestPoint[K], double* bestDistSq, in
         otherBranch = root->left;
     }
 
-    nearest(nextBranch, target, bestPoint, bestDistSq, depth + 1);
+    nearestNeighbor(nextBranch, target, depth + 1, best, bestDist);
 
-    double diff = (double)target[axis] - (double)root->point[axis];
-    if (diff * diff < *bestDistSq) {
-        nearest(otherBranch, target, bestPoint, bestDistSq, depth + 1);
+    double diff = target[axis] - root->point[axis];
+
+    if (diff * diff < *bestDist) {
+        nearestNeighbor(otherBranch, target, depth + 1, best, bestDist);
     }
 }
 
 // Range Search
-void radiusSearch(Node* root, int target[K], double radius, int depth, int results[][K], int* count) {
+void radiusSearch(Node* root, int target[], double radius, int depth, int results[][K], int* count) {
     if (root == NULL) return;
 
     double dSq = distanceSquared(root->point, target);
@@ -189,20 +182,32 @@ int addDriver(int point[K]) {
 
 int removeDriver(int point[K]) {
     if (totalDrivers <= 0) return 0;
-    int deleted = 0;
-    root = deleteNodeInternal(root, point, 0, &deleted);
-    if (deleted) totalDrivers--;
-    return deleted;
+    
+    Node* best = NULL;
+    double bestDist = DBL_MAX;
+    nearestNeighbor(root, point, 0, &best, &bestDist);
+    
+    if (best != NULL && bestDist == 0.0) {
+        root = deleteNode(root, point, 0);
+        totalDrivers--;
+        return 1;
+    }
+    return 0;
 }
 
 int findNearestDriver(int point[K], int outPoint[K], double* outDist) {
     if (totalDrivers == 0 || root == NULL) {
         return 0;
     }
+    Node* best = NULL;
     double bestDistSq = DBL_MAX;
-    nearest(root, point, outPoint, &bestDistSq, 0);
-    *outDist = sqrt(bestDistSq);
-    return 1;
+    nearestNeighbor(root, point, 0, &best, &bestDistSq);
+    if (best != NULL) {
+        for (int i = 0; i < K; i++) outPoint[i] = best->point[i];
+        *outDist = sqrt(bestDistSq);
+        return 1;
+    }
+    return 0;
 }
 
 int findDriversInRadius(int point[K], double radius, int outPoints[][K]) {
@@ -219,4 +224,5 @@ int getDriverCount(void) {
 void getAllDrivers(int outPoints[][K], int* count) {
     *count = 0;
     collectAll(root, outPoints, count);
-}
+}
+

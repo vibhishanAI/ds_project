@@ -10,11 +10,12 @@ typedef struct Node {
 } Node;
 
 // KD-tree operations
-Node* newNode(int coords[K]);
-Node* insert(Node* root, int coords[K], int depth);
-Node* deleteNode(Node* root, int coords[K], int depth);
-void nearest(Node* root, int target[K], int bestPoint[K], double* bestDistSq, int depth);
-void radiusSearch(Node* root, int target[K], double radius, int depth, int results[][K], int* count);
+Node* createNode(int point[]);
+Node* insert(Node* root, int point[], int depth);
+Node* findMin(Node* root, int d, int depth);
+Node* deleteNode(Node* root, int point[], int depth);
+void nearestNeighbor(Node* root, int target[], int depth, Node** best, double* bestDist);
+void radiusSearch(Node* root, int target[], double radius, int depth, int results[][K], int* count);
 void freeTree(Node* root);
 
 // Driver management
@@ -30,3 +31,4 @@ extern Node* root;
 extern int totalDrivers;
 
 #endif
+
