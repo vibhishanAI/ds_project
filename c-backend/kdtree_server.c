@@ -8,12 +8,13 @@
  * Reads commands from stdin, writes JSON responses to stdout.
  *
  * Protocol:
- *   ADD|x|y       -> {"status":"ok","index":N,"x":X,"y":Y}
- *   FIND|x|y      -> {"status":"ok","index":N,"x":X,"y":Y,"distance":D}
- *   REMOVE|index   -> {"status":"ok","removed":1}
- *   LIST           -> {"status":"ok","count":N,"drivers":[...]}
- *   CLEAR          -> {"status":"ok"}
- *   EXIT           -> (terminates)
+ *   ADD|x|y       -> {"status":"ok","point":[X,Y]}
+ *   FIND|x|y      -> {"status":"ok","point":[X,Y],"distance":D}
+ *   REMOVE|x|y    -> {"status":"ok","removed":1}
+ *   LIST          -> {"status":"ok","count":N,"drivers":[{"point":[X,Y]}]}
+ *   RANGE|x|y|r   -> {"status":"ok","count":N,"results":[{"point":[X,Y]}]}
+ *   CLEAR         -> {"status":"ok"}
+ *   EXIT          -> (terminates)
  */
 
 void handleAdd(char* args) {
@@ -24,11 +25,12 @@ void handleAdd(char* args) {
         return;
     }
 
-    int idx = addDriver(x, y);
-    if (idx < 0) {
+    int point[K] = {(int)x, (int)y};
+    int res = addDriver(point);
+    if (res < 0) {
         printf("{\"status\":\"error\",\"message\":\"Max drivers reached\"}\n");
     } else {
-        printf("{\"status\":\"ok\",\"index\":%d,\"x\":%.2f,\"y\":%.2f}\n", idx, x, y);
+        printf("{\"status\":\"ok\",\"point\":[%d,%d]}\n", point[0], point[1]);
     }
     fflush(stdout);
 }
@@ -41,11 +43,13 @@ void handleFind(char* args) {
         return;
     }
 
-    int foundIdx;
+    int target[K] = {(int)x, (int)y};
+    int foundPoint[K];
     double dist;
-    if (findNearestDriver(x, y, &foundIdx, &dist)) {
-        printf("{\"status\":\"ok\",\"index\":%d,\"x\":%.2f,\"y\":%.2f,\"distance\":%.2f}\n",
-               foundIdx, drivers[foundIdx].x, drivers[foundIdx].y, dist);
+    
+    if (findNearestDriver(target, foundPoint, &dist)) {
+        printf("{\"status\":\"ok\",\"point\":[%d,%d],\"distance\":%.2f}\n",
+               foundPoint[0], foundPoint[1], dist);
     } else {
         printf("{\"status\":\"error\",\"message\":\"No drivers available\"}\n");
     }
@@ -53,14 +57,15 @@ void handleFind(char* args) {
 }
 
 void handleRemove(char* args) {
-    int index;
-    if (sscanf(args, "%d", &index) != 1) {
+    double x, y;
+    if (sscanf(args, "%lf|%lf", &x, &y) != 2) {
         printf("{\"status\":\"error\",\"message\":\"Invalid REMOVE args\"}\n");
         fflush(stdout);
         return;
     }
 
-    int result = removeDriver(index);
+    int target[K] = {(int)x, (int)y};
+    int result = removeDriver(target);
     printf("{\"status\":\"ok\",\"removed\":%d}\n", result);
     fflush(stdout);
 }
@@ -69,20 +74,20 @@ void handleList() {
     int activeCount = getDriverCount();
     printf("{\"status\":\"ok\",\"count\":%d,\"drivers\":[", activeCount);
 
-    int first = 1;
-    for (int i = 0; i < driverCount; i++) {
-        if (drivers[i].active) {
-            if (!first) printf(",");
-            printf("{\"index\":%d,\"x\":%.2f,\"y\":%.2f}", i, drivers[i].x, drivers[i].y);
-            first = 0;
+    if (activeCount > 0) {
+        int points[MAX_DRIVERS][K];
+        int count = 0;
+        getAllDrivers(points, &count);
+        
+        for (int i = 0; i < count; i++) {
+            if (i > 0) printf(",");
+            printf("{\"point\":[%d,%d]}", points[i][0], points[i][1]);
         }
     }
 
     printf("]}\n");
     fflush(stdout);
 }
-
-
 
 void handleRange(char* args) {
     double x, y, radius;
@@ -92,25 +97,23 @@ void handleRange(char* args) {
         return;
     }
 
-    int indices[MAX_DRIVERS];
-    int count = findDriversInRadius(x, y, radius, indices);
+    int target[K] = {(int)x, (int)y};
+    int points[MAX_DRIVERS][K];
+    int count = findDriversInRadius(target, radius, points);
 
     printf("{\"status\":\"ok\",\"count\":%d,\"results\":[", count);
     for (int i = 0; i < count; i++) {
-        int idx = indices[i];
         if (i > 0) printf(",");
-        printf("{\"index\":%d,\"x\":%.2f,\"y\":%.2f}",
-               idx, drivers[idx].x, drivers[idx].y);
+        printf("{\"point\":[%d,%d]}", points[i][0], points[i][1]);
     }
     printf("]}\n");
     fflush(stdout);
 }
 
 void handleClear() {
-    for (int i = 0; i < driverCount; i++) {
-        drivers[i].active = 0;
-    }
-    driverCount = 0;
+    freeTree(root);
+    root = NULL;
+    totalDrivers = 0;
     printf("{\"status\":\"ok\"}\n");
     fflush(stdout);
 }

@@ -87,7 +87,7 @@ export default function Canvas({
         ctx.lineWidth = 4;
         ctx.beginPath();
         ctx.moveTo(passengerPos.x, passengerPos.y);
-        ctx.lineTo(res.x, res.y);
+        ctx.lineTo(res.point[0], res.point[1]);
         ctx.stroke();
 
         // Dashed line
@@ -97,7 +97,7 @@ export default function Canvas({
         ctx.lineDashOffset = -dashOffset;
         ctx.beginPath();
         ctx.moveTo(passengerPos.x, passengerPos.y);
-        ctx.lineTo(res.x, res.y);
+        ctx.lineTo(res.point[0], res.point[1]);
         ctx.stroke();
         ctx.setLineDash([]);
       });
@@ -107,8 +107,8 @@ export default function Canvas({
     drivers.forEach((driver) => {
       const isMatched = matchResult && (
         Array.isArray(matchResult) 
-          ? matchResult.some(res => res.index === driver.index)
-          : matchResult.index === driver.index
+          ? matchResult.some(res => res.point[0] === driver.point[0] && res.point[1] === driver.point[1])
+          : (matchResult.point[0] === driver.point[0] && matchResult.point[1] === driver.point[1])
       );
       
       const pulseScale = isMatched ? 1 + Math.sin(timeRef.current / 200) * 0.15 : 1;
@@ -116,12 +116,12 @@ export default function Canvas({
       // Outer glow
       if (isMatched) {
         const glowRadius = 24 * pulseScale;
-        const glow = ctx.createRadialGradient(driver.x, driver.y, 0, driver.x, driver.y, glowRadius);
+        const glow = ctx.createRadialGradient(driver.point[0], driver.point[1], 0, driver.point[0], driver.point[1], glowRadius);
         glow.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
         glow.addColorStop(1, 'rgba(59, 130, 246, 0)');
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(driver.x, driver.y, glowRadius, 0, Math.PI * 2);
+        ctx.arc(driver.point[0], driver.point[1], glowRadius, 0, Math.PI * 2);
         ctx.fill();
       }
 
@@ -130,12 +130,12 @@ export default function Canvas({
       ctx.strokeStyle = isMatched ? 'rgba(59, 130, 246, 0.8)' : 'rgba(16, 185, 129, 0.4)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(driver.x, driver.y, ringRadius, 0, Math.PI * 2);
+      ctx.arc(driver.point[0], driver.point[1], ringRadius, 0, Math.PI * 2);
       ctx.stroke();
 
       // Inner dot
       const dotRadius = (isMatched ? 6 : 5) * pulseScale;
-      const dotGrad = ctx.createRadialGradient(driver.x, driver.y, 0, driver.x, driver.y, dotRadius);
+      const dotGrad = ctx.createRadialGradient(driver.point[0], driver.point[1], 0, driver.point[0], driver.point[1], dotRadius);
       if (isMatched) {
         dotGrad.addColorStop(0, '#60a5fa');
         dotGrad.addColorStop(1, '#3b82f6');
@@ -145,14 +145,14 @@ export default function Canvas({
       }
       ctx.fillStyle = dotGrad;
       ctx.beginPath();
-      ctx.arc(driver.x, driver.y, dotRadius, 0, Math.PI * 2);
+      ctx.arc(driver.point[0], driver.point[1], dotRadius, 0, Math.PI * 2);
       ctx.fill();
 
       // Car icon
       ctx.fillStyle = isMatched ? '#dbeafe' : '#d1fae5';
       ctx.font = `${isMatched ? 14 : 12}px Inter`;
       ctx.textAlign = 'center';
-      ctx.fillText('🚗', driver.x, driver.y - ringRadius - 6);
+      ctx.fillText('🚗', driver.point[0], driver.point[1] - ringRadius - 6);
     });
 
     // Draw passenger
@@ -233,3 +233,4 @@ export default function Canvas({
     </div>
   );
 }
+

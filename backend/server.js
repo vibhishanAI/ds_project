@@ -122,13 +122,14 @@ app.get('/api/drivers', async (req, res) => {
   }
 });
 
-// POST /api/drivers — Add a driver { x, y }
+// POST /api/drivers — Add a driver { point: [x, y] }
 app.post('/api/drivers', async (req, res) => {
   try {
-    const { x, y } = req.body;
-    if (x === undefined || y === undefined) {
-      return res.status(400).json({ status: 'error', message: 'x and y are required' });
+    const { point } = req.body;
+    if (!point || point.length !== 2) {
+      return res.status(400).json({ status: 'error', message: 'point array [x, y] is required' });
     }
+    const [x, y] = point;
     const result = await sendCommand(`ADD|${x}|${y}`);
     res.json(result);
   } catch (err) {
@@ -136,11 +137,15 @@ app.post('/api/drivers', async (req, res) => {
   }
 });
 
-// DELETE /api/drivers/:index — Remove a driver
-app.delete('/api/drivers/:index', async (req, res) => {
+// POST /api/remove-driver — Remove a driver by location { point: [x, y] }
+app.post('/api/remove-driver', async (req, res) => {
   try {
-    const index = parseInt(req.params.index);
-    const result = await sendCommand(`REMOVE|${index}`);
+    const { point } = req.body;
+    if (!point || point.length !== 2) {
+      return res.status(400).json({ status: 'error', message: 'point array [x, y] is required' });
+    }
+    const [x, y] = point;
+    const result = await sendCommand(`REMOVE|${x}|${y}`);
     res.json(result);
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
@@ -148,13 +153,14 @@ app.delete('/api/drivers/:index', async (req, res) => {
 });
 
 
-// POST /api/find — Find nearest driver { x, y }
+// POST /api/find — Find nearest driver { point: [x, y] }
 app.post('/api/find', async (req, res) => {
   try {
-    const { x, y } = req.body;
-    if (x === undefined || y === undefined) {
-      return res.status(400).json({ status: 'error', message: 'x and y are required' });
+    const { point } = req.body;
+    if (!point || point.length !== 2) {
+      return res.status(400).json({ status: 'error', message: 'point array [x, y] is required' });
     }
+    const [x, y] = point;
     const result = await sendCommand(`FIND|${x}|${y}`);
     res.json(result);
   } catch (err) {
@@ -164,19 +170,21 @@ app.post('/api/find', async (req, res) => {
 
 
 
-// POST /api/range — Find drivers in radius { x, y, radius }
+// POST /api/range — Find drivers in radius { point: [x, y], radius }
 app.post('/api/range', async (req, res) => {
   try {
-    const { x, y, radius } = req.body;
-    if (x === undefined || y === undefined || radius === undefined) {
-      return res.status(400).json({ status: 'error', message: 'x, y, and radius are required' });
+    const { point, radius } = req.body;
+    if (!point || point.length !== 2 || radius === undefined) {
+      return res.status(400).json({ status: 'error', message: 'point array [x, y] and radius are required' });
     }
+    const [x, y] = point;
     const result = await sendCommand(`RANGE|${x}|${y}|${radius}`);
     res.json(result);
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }
 });
+
 
 // POST /api/clear — Clear all drivers
 app.post('/api/clear', async (req, res) => {

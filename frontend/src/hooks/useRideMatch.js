@@ -5,14 +5,13 @@ export function useRideMatch() {
   const [drivers, setDrivers] = useState([]);
   const [mode, setMode] = useState('add-driver'); // 'add-driver' | 'add-passenger' | 'find-nearest' | 'search-radius' | 'delete-driver'
   const [matchResult, setMatchResult] = useState(null); // Can be single object or array
-  const [passengerPos, setPassengerPos] = useState(null);
+  const [passengerPos, setPassengerPos] = useState(null); // Keep this as {x, y} or change to point array? Let's keep it {x, y} for canvas, but send point array to API.
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
   
   // Search parameters
   const [kValue, setKValue] = useState(3);
   const [radiusValue, setRadiusValue] = useState(100);
-  
 
   const healthInterval = useRef(null);
 
@@ -49,25 +48,27 @@ export function useRideMatch() {
     setLoading(true);
     try {
       if (mode === 'add-driver') {
-        const result = await api.addDriver(x, y);
+        const result = await api.addDriver([x, y]);
         if (result.status === 'ok') {
           await refreshDrivers();
         }
       } else if (mode === 'delete-driver') {
         const clickedDriver = drivers.find(d => {
-          const dist = Math.sqrt((d.x - x)**2 + (d.y - y)**2);
+          const dx = d.point[0] - x;
+          const dy = d.point[1] - y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
           return dist < 20; // Slightly larger hit area for easier deletion
         });
 
         if (clickedDriver) {
-          await api.removeDriver(clickedDriver.index);
+          await api.removeDriver(clickedDriver.point);
           await refreshDrivers();
           setMatchResult(prev => {
             if (!prev) return null;
             if (Array.isArray(prev)) {
-              const filtered = prev.filter(res => res.index !== clickedDriver.index);
+              const filtered = prev.filter(res => !(res.point[0] === clickedDriver.point[0] && res.point[1] === clickedDriver.point[1]));
               return filtered.length > 0 ? filtered : null;
-            } else if (prev.index === clickedDriver.index) {
+            } else if (prev.point[0] === clickedDriver.point[0] && prev.point[1] === clickedDriver.point[1]) {
               return null;
             }
             return prev;
@@ -78,18 +79,16 @@ export function useRideMatch() {
         setMatchResult(null);
       } else if (mode === 'find-nearest') {
         setPassengerPos({ x, y });
-        const result = await api.findNearest(x, y);
+        const result = await api.findNearest([x, y]);
         if (result.status === 'ok') {
           setMatchResult({
-            index: result.index,
-            x: result.x,
-            y: result.y,
+            point: result.point,
             distance: result.distance,
           });
         }
       } else if (mode === 'search-radius') {
         setPassengerPos({ x, y });
-        const result = await api.findRange(x, y, radiusValue);
+        const result = await api.findRange([x, y], radiusValue);
         if (result.status === 'ok') {
           setMatchResult(result.results || []);
         }
@@ -101,20 +100,18 @@ export function useRideMatch() {
     }
   }, [mode, kValue, radiusValue, refreshDrivers, drivers]);
 
-
-  // Remove a driver
-  const handleRemoveDriver = useCallback(async (index) => {
+  // Remove a driver directly (if we ever had a list UI)
+  const handleRemoveDriver = useCallback(async (point) => {
     setLoading(true);
     try {
-      await api.removeDriver(index);
+      await api.removeDriver(point);
       await refreshDrivers();
-      // Clear match if matched driver was removed
       setMatchResult(prev => {
         if (!prev) return null;
         if (Array.isArray(prev)) {
-          const filtered = prev.filter(res => res.index !== index);
+          const filtered = prev.filter(res => !(res.point[0] === point[0] && res.point[1] === point[1]));
           return filtered.length > 0 ? filtered : null;
-        } else if (prev.index === index) {
+        } else if (prev.point[0] === point[0] && prev.point[1] === point[1]) {
           return null;
         }
         return prev;
@@ -145,12 +142,10 @@ export function useRideMatch() {
     if (!passengerPos) return;
     setLoading(true);
     try {
-      const result = await api.findNearest(passengerPos.x, passengerPos.y);
+      const result = await api.findNearest([passengerPos.x, passengerPos.y]);
       if (result.status === 'ok') {
         setMatchResult({
-          index: result.index,
-          x: result.x,
-          y: result.y,
+          point: result.point,
           distance: result.distance,
         });
       }
@@ -165,7 +160,7 @@ export function useRideMatch() {
     if (!passengerPos) return;
     setLoading(true);
     try {
-      const result = await api.findRange(passengerPos.x, passengerPos.y, radiusValue);
+      const result = await api.findRange([passengerPos.x, passengerPos.y], radiusValue);
       if (result.status === 'ok') {
         setMatchResult(result.results || []);
       }
@@ -202,3 +197,4 @@ export function useRideMatch() {
     triggerSearchRadius,
   };
 }
+

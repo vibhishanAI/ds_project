@@ -5,49 +5,51 @@ export async function listDrivers() {
   return res.json();
 }
 
-export async function addDriver(x, y) {
+export async function addDriver(point) {
   const res = await fetch(`${API_BASE}/drivers`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ x, y }),
+    body: JSON.stringify({ point }),
   });
   return res.json();
 }
 
-
-export async function removeDriver(index) {
-  const res = await fetch(`${API_BASE}/drivers/${index}`, {
-    method: 'DELETE',
+export async function removeDriver(point) {
+  const res = await fetch(`${API_BASE}/remove-driver`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ point }),
   });
   return res.json();
 }
 
-export async function findNearest(x, y) {
+export async function findNearest(point) {
   const res = await fetch(`${API_BASE}/find`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ x, y }),
+    body: JSON.stringify({ point }),
   });
   return res.json();
 }
 
-export async function findKNearest(x, y, k) {
+export async function findKNearest(point, k) {
   const res = await fetch(`${API_BASE}/find-k`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ x, y, k }),
+    body: JSON.stringify({ point, k }),
   });
   return res.json();
 }
 
-export async function findRange(x, y, radius) {
+export async function findRange(point, radius) {
   const res = await fetch(`${API_BASE}/range`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ x, y, radius }),
+    body: JSON.stringify({ point, radius }),
   });
   return res.json();
 }
+
 
 export async function clearAll() {
   const res = await fetch(`${API_BASE}/clear`, {
